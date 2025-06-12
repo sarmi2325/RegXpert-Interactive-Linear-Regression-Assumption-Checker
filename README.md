@@ -26,7 +26,7 @@ This is an interactive **Streamlit-based web app** that helps users upload datas
 
 ---
 ##  Live Demo
-[🧪 Launch App]([https://your-streamlit-link.streamlit.app](https://regxpert-interactive-linear-regression-assumption-checker-z7qf.streamlit.app/))
+[Demo]([https://your-streamlit-link.streamlit.app](https://regxpert-interactive-linear-regression-assumption-checker-z7qf.streamlit.app/))
 
 
 
