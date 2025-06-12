@@ -107,113 +107,110 @@ def fig_to_bytes(fig):
 
 # ----- REGRESSION DIAGNOSTICS -----
 def run_regression_diagnostics(df, features, target):
-    X = df[features]
-    y = df[target]
-    X_const = add_constant(X)
-    model = OLS(y, X_const).fit()
-    y_pred = model.predict(X_const)
-    residuals = y - y_pred
-
-    # -------------------- 1. LINEARITY --------------------
-    st.subheader("1. Linearity - Residual Plot")
-    fig1, ax1 = plt.subplots()
-    ax1.scatter(y_pred, residuals, alpha=0.6)
-    ax1.axhline(0, color='red', linestyle='--')
-    ax1.set_xlabel("Predicted Values")
-    ax1.set_ylabel("Residuals (y - ŷ)")
-    ax1.set_title("Residuals vs Predicted Values")
-    st.pyplot(fig1)
-
-    st.markdown("""
-    ✅ **Insight:**  
-    - Residuals should be randomly scattered around 0 (red line).  
-    - Curves or patterns imply **non-linearity**, suggesting model is missing structure.  
-    - Consider polynomial regression if pattern appears.
-    """)
-
-    # Optional: Homoscedasticity
-    st.subheader("1A. Homoscedasticity - Spread of Residuals")
-    fig_h, ax_h = plt.subplots()
-    ax_h.scatter(y_pred, residuals**2, alpha=0.5, color='green')
-    ax_h.set_xlabel("Predicted Values")
-    ax_h.set_ylabel("Squared Residuals")
-    ax_h.set_title("Homoscedasticity Check")
-    st.pyplot(fig_h)
-
-    st.markdown("""
-    ✅ **Insight:**  
-    - Ideally, the spread should be **uniform**.  
-    - A cone/funnel shape → **Heteroscedasticity**, violating assumption.  
-    - Try log-transforming the target or weighted regression.
-    """)
-
-    # -------------------- 2. MULTICOLLINEARITY - VIF --------------------
-    st.subheader("2. Multicollinearity - VIF")
     try:
-        vif_data = []
-        for i in range(X.shape[1]):
-            try:
-                vif = variance_inflation_factor(X.values, i)
-            except:
-                vif = np.nan
-            vif_data.append(vif)
+        X = df[features]
+        y = df[target]
 
-        vif_df = pd.DataFrame({
-            "Feature": X.columns,
-            "VIF": vif_data
-        })
+        # Combine and drop missing values
+        data = pd.concat([X, y], axis=1).dropna()
+        if data.empty:
+            st.error("No data left after removing missing values. Please handle missing values before running diagnostics.")
+            return
 
-        st.dataframe(vif_df.style.format({"VIF": "{:.2f}"}).set_properties(**{'text-align': 'center'}))
+        X = data[features]
+        y = data[target]
+
+        # Add constant term for OLS
+        X_const = add_constant(X)
+
+        model = OLS(y, X_const).fit()
+        y_pred = model.predict(X_const)
+        residuals = y - y_pred
+
+        # 1. LINEARITY
+        st.subheader("1. Linearity - Residual Plot")
+        fig1, ax1 = plt.subplots()
+        ax1.scatter(y_pred, residuals, alpha=0.6)
+        ax1.axhline(0, color='red', linestyle='--')
+        ax1.set_xlabel("Predicted Values")
+        ax1.set_ylabel("Residuals (y - ŷ)")
+        ax1.set_title("Residuals vs Predicted Values")
+        st.pyplot(fig1)
 
         st.markdown("""
         ✅ **Insight:**  
-        - **VIF < 5** is good.  
-        - **VIF > 10** means serious multicollinearity.  
-        - Consider removing or combining correlated variables.
+        - Residuals should be randomly scattered around 0.  
+        - Curves or patterns imply non-linearity.
         """)
+
+        # 1A. HOMOSCEDASTICITY
+        st.subheader("1A. Homoscedasticity - Spread of Residuals")
+        fig_h, ax_h = plt.subplots()
+        ax_h.scatter(y_pred, residuals**2, alpha=0.5, color='green')
+        ax_h.set_xlabel("Predicted Values")
+        ax_h.set_ylabel("Squared Residuals")
+        ax_h.set_title("Homoscedasticity Check")
+        st.pyplot(fig_h)
+
+        st.markdown("""
+        ✅ **Insight:**  
+        - Ideally, spread should be uniform.  
+        - A cone shape implies heteroscedasticity.
+        """)
+
+        # 2. MULTICOLLINEARITY - VIF
+        st.subheader("2. Multicollinearity - VIF")
+        try:
+            vif_data = []
+            for i in range(X.shape[1]):
+                vif = variance_inflation_factor(X.values, i)
+                vif_data.append(vif)
+
+            vif_df = pd.DataFrame({
+                "Feature": X.columns,
+                "VIF": vif_data
+            })
+
+            st.dataframe(vif_df.style.format({"VIF": "{:.2f}"}))
+
+            st.markdown("""
+            ✅ **Insight:**  
+            - VIF < 5 is ideal.  
+            - VIF > 10 means high multicollinearity.
+            """)
+        except Exception as e:
+            st.warning(f"VIF calculation skipped: {e}")
+
+        # 3. NORMALITY OF RESIDUALS - Q-Q Plot
+        st.subheader("3. Normality of Residuals - Q-Q Plot")
+        fig2, ax2 = plt.subplots()
+        probplot(residuals, dist="norm", plot=ax2)
+        ax2.set_title("Q-Q Plot of Residuals")
+        st.pyplot(fig2)
+
+        st.markdown("""
+        ✅ **Insight:**  
+        - Residuals should align along the 45° line.
+        """)
+
+        # 4. AUTOCORRELATION - DURBIN-WATSON
+        st.subheader("4. Autocorrelation - Durbin-Watson")
+        dw = durbin_watson(residuals)
+        st.metric("Durbin-Watson Statistic", f"{dw:.2f}")
+
+        st.markdown("""
+        ✅ **Insight:**  
+        - DW ≈ 2 is ideal.  
+        - DW < 1.5 or > 2.5 implies autocorrelation.
+        """)
+
+        # 5. MODEL SUMMARY
+        st.subheader("5. Regression Model Summary")
+        with st.expander("Expand to view model summary"):
+            st.code(model.summary().as_text())
+
     except Exception as e:
-        st.error(f"VIF Calculation Error: {e}")
-
-    # -------------------- 3. NORMALITY OF RESIDUALS - Q-Q PLOT --------------------
-    st.subheader("3. Normality of Residuals - Q-Q Plot")
-    fig2, ax2 = plt.subplots()
-    probplot(residuals, dist="norm", plot=ax2)
-    ax2.set_title("Q-Q Plot of Residuals")
-    st.pyplot(fig2)
-
-    st.markdown("""
-    ✅ **Insight:**  
-    - Points should follow the 45° line.  
-    - Deviations indicate **non-normal residuals**, affecting confidence intervals & p-values.  
-    - Consider transformations (log/sqrt) or robust regression.
-    """)
-
-    # -------------------- 4. AUTOCORRELATION - DURBIN WATSON --------------------
-    st.subheader("4. Autocorrelation - Durbin-Watson")
-    dw = durbin_watson(residuals)
-    st.metric("Durbin-Watson Statistic", f"{dw:.2f}")
-
-    st.markdown("""
-    ✅ **Insight:**  
-    - **DW ≈ 2** means no autocorrelation (ideal).  
-    - **DW < 1.5** → Positive autocorrelation.  
-    - **DW > 2.5** → Negative autocorrelation.  
-    - Common in time series data. Try time-aware models (ARIMA, LSTM).
-    """)
-
-    # -------------------- 5. MODEL SUMMARY --------------------
-    st.subheader("5. Regression Model Summary")
-    with st.expander("Expand to view model summary"):
-        st.code(model.summary().as_text())
-
-    st.markdown("""
-    ✅ **Insight:**  
-    - **R²**: Variance explained by model.  
-    - **Adj R²**: Adjusted for number of predictors (useful for multiple features).  
-    - **F-statistic**: Overall model significance.  
-    - **p-values**: Significance of individual predictors (< 0.05 is desirable).  
-    - **Std Err**: Uncertainty in coefficients.
-    """)
+        st.error(f"Regression diagnostic failed: {e}")
 
 
 # ----- SAVE TO CSV -----
