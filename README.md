@@ -26,7 +26,9 @@ This is an interactive **Streamlit-based web app** that helps users upload datas
 
 ---
 ##  Live Demo
-You can check out the live deployed app here: [https://expenses-tracker-2-dokm.onrender.com](https://regxpert-interactive-linear-regression-assumption-checker-z7qf.streamlit.app/)
+You can check out the live deployed app here:[Demo](https://regxpert-interactive-linear-regression-assumption-checker-z7qf.streamlit.app/)
+
+---
 
 
 
